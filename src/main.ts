@@ -3,11 +3,12 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { SequelizeExceptionFilter } from './handler/squlize-error-handler';
+import { HttpExceptionFilter } from './handler/exception-error-handller';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // 🔹 Setup Swagger Config
+  // Setup Swagger Config
   const config = new DocumentBuilder()
     .setTitle('My API')
     .setDescription('API documentation')
@@ -35,7 +36,9 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   });
-  app.useGlobalFilters(new SequelizeExceptionFilter());
+
+  app.useGlobalFilters(new HttpExceptionFilter(),
+  );
 
   await app.listen(process.env.PORT ?? 9000);
 }

@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagg
 import { CreateArticleDto } from "src/dto/article/CreateArticleDTO";
 import { UpdateArticleDto } from "src/dto/article/UpdateArticleDTO";
 import { PaginationDTO } from "src/dto/PaginationDTO";
+import { successResponse } from "src/handler/response-success-handller";
 import { ArticleService } from "src/service/ArticleService";
 import { CurrentUser } from "src/shared/current-user.decorator";
 import { JwtAuthGuard } from "src/shared/jwt-auth.guard";
@@ -25,7 +26,7 @@ export class ArticleController {
             if (!userId) {
                 throw new UnauthorizedException('User not authenticated');
             }
-            return this.articleService.create(createArticleDto, userId); // Kirim ke service
+            return successResponse(await this.articleService.create(createArticleDto, userId)) 
         } catch (error) {
             console.error('Error creating article:', error);
             throw error;
@@ -36,7 +37,12 @@ export class ArticleController {
     @Get()
     @ApiOperation({ summary: 'Get all users with pagination' })
     async findAll(@Query() paginationDto: PaginationDTO) {
-        return this.articleService.findAll(paginationDto);
+        try {
+            return successResponse(await this.articleService.findAll(paginationDto));
+        }catch (error) {
+            console.error('Error fetching articles:', error);
+            throw error;
+        }
     }
 
     @UseGuards(JwtAuthGuard)
@@ -44,30 +50,46 @@ export class ArticleController {
     @ApiOperation({ summary: 'Get user by ID' })
     @ApiResponse({ status: 404, description: 'User not found' })
     async findOne(@Param('id') id: number) {
-        return this.articleService.findOne(id);
+        try {
+            return successResponse(await this.articleService.findOne(id));
+        } catch (error) {
+            console.error('Error finding article:', error);
+            throw error;
+        }
     }
 
     @UseGuards(JwtAuthGuard)
     @Put(':id')
     @ApiOperation({ summary: 'Update user' })
-    async update(
-    @Param('id') id: number,
-    @Body() updateArticleDto: UpdateArticleDto, @CurrentUser() user: any) {
-        const userId = user.userId;
-        if (!userId) {
-            throw new UnauthorizedException('User not authenticated');
+    async update(@Param('id') id: number, @Body() updateArticleDto: UpdateArticleDto, @CurrentUser() user: any) {
+        try {
+            const userId = user.userId;
+            console.log(userId, " user id ---")
+            if (!userId) {
+                throw new UnauthorizedException('User not authenticated');
+            }
+            return successResponse(await this.articleService.update(id, updateArticleDto, userId));
+        } catch (error) {
+            console.error('Error updating article:', error);
+            throw error;
         }
-        return this.articleService.update(id, updateArticleDto, userId);
     }
 
     @UseGuards(JwtAuthGuard)
     @Delete(':id')
     @ApiOperation({ summary: 'Delete user' })
     async remove(@Param('id') id: number, @CurrentUser() user: any) {
-        const userId = user.userId;
-        if (!userId) {
-            throw new UnauthorizedException('User not authenticated');
-        }
-        return this.articleService.remove(id, userId);
+        try {
+            const userId = user.userId;
+            if (!userId) {
+                throw new UnauthorizedException('User not authenticated');
+            }
+            await this.articleService.remove(id, userId)
+            return successResponse("delete article success")
+        } catch (error) {
+            console.error('Error removing user:', error);
+            throw error;
+        } 
+        
     }
 }

@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/sequelize';
-import { Op, WhereOptions } from 'sequelize';
+import { Op, where, WhereOptions } from 'sequelize';
 import { CreateArticleDto } from 'src/dto/article/CreateArticleDTO';
 import { UpdateArticleDto } from 'src/dto/article/UpdateArticleDTO';
 import { PaginationDTO } from 'src/dto/PaginationDTO';
 import { Article } from 'src/entity/Article';
+import { slugify } from 'src/shared/slugify';
 
 @Injectable()
 export class ArticleService {
@@ -15,6 +16,14 @@ export class ArticleService {
 
   async create(createArticleDto: CreateArticleDto, userId: number) {
     try {
+        const genererateSlug = slugify(createArticleDto.title)
+        const existSlug = await this.articleModel.findOne({
+            where:{slug:genererateSlug}
+        })
+
+        if (existSlug){
+            throw new ConflictException("slug already exist") 
+        }
         const article = {
         ...createArticleDto,
         authorId: userId,
@@ -46,7 +55,7 @@ export class ArticleService {
     });
 
     return {
-      data: rows,
+      content: rows,
       meta: {
         totalItems: count,
         currentPage: page,

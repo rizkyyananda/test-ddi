@@ -19,12 +19,13 @@ export class UsersService {
 
       const exists = await this.userModel.findOne({
         where: {
-          [Op.or]: [{ email }, { username }]
-        }
+          [Op.or]: [{ email }, { username }],
+          deleted_at: null,
+        },
       });
 
-      if (exists) {
-        throw new Error('DUPLICATE_EMAIL_OR_USERNAME');
+      if (exists){
+        throw new ConflictException(`username or email already exist`);
       }
 
       return await this.userModel.create({
@@ -33,18 +34,8 @@ export class UsersService {
       });
 
     } catch (error) {
-      console.error('Error creating user:', error);
-
-      // cek jika error dari validasi duplicate email/username
-      if (error.message === 'DUPLICATE_EMAIL_OR_USERNAME') {
-        throw new ConflictException('email or username already exists');
-      }
-
-      // cek jika error dari unique constraint DB
-      if (error.name === 'SequelizeUniqueConstraintError') {
-        throw new ConflictException('email or username already exists');
-      }
-      throw new InternalServerErrorException('Failed to create user');
+      console.error('Error created email:', error);
+      throw error;
     }
   }
 
@@ -69,7 +60,7 @@ export class UsersService {
     });
 
     return {
-      data: rows,
+      content: rows,
       total: count,
       page,
       limit,
@@ -77,17 +68,14 @@ export class UsersService {
     };
   }
 
-  async findOne(id: number): Promise<User> {
-    const user = await this.userModel.findByPk(id, {
-    //   include: ['articles']
-    });
-
+  async findOne(id: number) {
+    const user = await this.userModel.findByPk(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-
     return user;
   }
+
 
   async findByUsername(username: string): Promise<User> {
     const user = await this.userModel.findOne({
@@ -108,12 +96,24 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    const user = await this.findOne(id);
-    return user.update(updateUserDto);
+    try {
+      const user = await this.findOne(id);
+      if (!user) {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
+      return user.update(updateUserDto);
+
+    }catch (error) {
+      throw error
+    }
   }
 
   async remove(id: number) {
-    const user = await this.findOne(id);
-    return user.destroy();
+    try {
+      const user = await this.findOne(id);
+      return await this.userModel.destroy(user ? { where: { id } } : {})
+    }catch (error) {
+      throw error;
+    }
   }
 }
